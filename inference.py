@@ -1,5 +1,4 @@
 import tensorflow as tf
-import spacy
 import os
 import numpy as np
 import ujson as json
@@ -15,7 +14,7 @@ char_limit = 16
 hidden = 75
 char_dim = 8
 char_hidden = 100
-use_cudnn = True
+use_cudnn = False
 
 # File path
 target_dir = "data"
@@ -137,7 +136,8 @@ class Inference(object):
         span, context_idxs, ques_idxs, context_char_idxs, ques_char_idxs = self.prepro(
             context, question)
         yp1, yp2 = sess.run([model.yp1, model.yp2], feed_dict={
-                            model.c: context_idxs, model.q: ques_idxs, model.ch: context_char_idxs, model.qh: ques_char_idxs})
+                            model.c: context_idxs, model.q: ques_idxs,
+                            model.ch: context_char_idxs, model.qh: ques_char_idxs})
         start_idx = span[yp1[0]][0]
         end_idx = span[yp2[0]][1]
         return context[start_idx: end_idx]
@@ -192,24 +192,42 @@ class Inference(object):
 # Demo, example from paper "SQuAD: 100,000+ Questions for Machine Comprehension of Text"
 if __name__ == "__main__":
     infer = Inference()
-    context = "In meteorology, precipitation is any product of the condensation " \
-              "of atmospheric water vapor that falls under gravity. The main forms " \
-              "of precipitation include drizzle, rain, sleet, snow, graupel and hail." \
-              "Precipitation forms as smaller droplets coalesce via collision with other " \
-              "rain drops or ice crystals within a cloud. Short, intense periods of rain " \
-              "in scattered locations are called “showers”."
-    ques1 = "What causes precipitation to fall?"
-    ques2 = "What is another main form of precipitation besides drizzle, rain, snow, sleet and hail?"
-    ques3 = "Where do water droplets collide with ice crystals to form precipitation?"
+    # context = "In meteorology, precipitation is any product of the condensation " \
+    #           "of atmospheric water vapor that falls under gravity. The main forms " \
+    #           "of precipitation include drizzle, rain, sleet, snow, graupel and hail." \
+    #           "Precipitation forms as smaller droplets coalesce via collision with other " \
+    #           "rain drops or ice crystals within a cloud. Short, intense periods of rain " \
+    #           "in scattered locations are called “showers”."
+    # ques1 = "What causes precipitation to fall?"
+    # ques2 = "What is another main form of precipitation besides drizzle, rain, snow, sleet and hail?"
+    # ques3 = "Where do water droplets collide with ice crystals to form precipitation?"
+    # ques4 = "What is the relationship between water droplets and a cloud?"
 
-    # Correct: gravity, Output: drizzle, rain, sleet, snow, graupel and hail
+    # # Correct: gravity, Output: drizzle, rain, sleet, snow, graupel and hail
+    # ans1 = infer.response(context, ques1)
+    # print("Answer 1: {}".format(ans1))
+
+    # # Correct: graupel, Output: graupel
+    # ans2 = infer.response(context, ques2)
+    # print("Answer 2: {}".format(ans2))
+
+    # # Correct: within a cloud, Output: within a cloud
+    # ans3 = infer.response(context, ques3)
+    # print("Answer 3: {}".format(ans3))
+
+    # ans4 = infer.response(context, ques4)
+    # print("Answer 4: {}".format(ans4))
+
+    context = "sen. charles e. schumer called on federal safety officials yesterday to reopen " \
+              "their investigation into the fatal crash of a passenger jet in belle_harbor , " \
+              "queens , because equipment failure , not pilot error , might have been the cause "
+    ques1 = "Where is queens locations in?"
     ans1 = infer.response(context, ques1)
     print("Answer 1: {}".format(ans1))
 
-    # Correct: graupel, Output: graupel
+    context = "... michael crawford , right , who is ailing , will not return to his award-winning " \
+              "role of count fosco in the andrew lloyd webber musical adaptation of the wilkie_collins " \
+              "classic , '' the woman in white , '' in london as scheduled on may 2 ."
+    ques2 = "Where is the birth place of wilkie_collins?"
     ans2 = infer.response(context, ques2)
     print("Answer 2: {}".format(ans2))
-
-    # Correct: within a cloud, Output: within a cloud
-    ans3 = infer.response(context, ques3)
-    print("Answer 3: {}".format(ans3))

@@ -45,12 +45,19 @@ def train(config):
         writer = tf.summary.FileWriter(config.log_dir)
         sess.run(tf.global_variables_initializer())
         saver = tf.train.Saver()
+
+        if tf.train.checkpoint_exists(config.save_dir):
+            print("Load session from previous training process ...")
+            saver.restore(sess, tf.train.latest_checkpoint(config.save_dir))
+
         train_handle = sess.run(train_iterator.string_handle())
         dev_handle = sess.run(dev_iterator.string_handle())
         sess.run(tf.assign(model.is_train, tf.constant(True, dtype=tf.bool)))
         sess.run(tf.assign(model.lr, tf.constant(lr, dtype=tf.float32)))
 
-        for _ in tqdm(range(1, config.num_steps + 1)):
+        last_global_step = sess.run(model.global_step)
+
+        for _ in tqdm(range(last_global_step, config.num_steps + 1)):
             global_step = sess.run(model.global_step) + 1
             loss, train_op = sess.run([model.loss, model.train_op], feed_dict={
                                       handle: train_handle})
