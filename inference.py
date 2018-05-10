@@ -7,7 +7,7 @@ import ujson as json
 from func import cudnn_gru, native_gru, dot_attention, summ, ptr_net
 from prepro import word_tokenize, convert_idx
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
 
 # Must be consistant with training
 char_limit = 16
@@ -108,8 +108,14 @@ class InfModel(object):
             outer = tf.matmul(tf.expand_dims(tf.nn.softmax(logits1), axis=2),
                               tf.expand_dims(tf.nn.softmax(logits2), axis=1))
             outer = tf.matrix_band_part(outer, 0, 15)
-            self.yp1 = tf.argmax(tf.reduce_max(outer, axis=2), axis=1)
-            self.yp2 = tf.argmax(tf.reduce_max(outer, axis=1), axis=1)
+
+            # outer = tf.Print(outer, [outer.shape], "Print part of outer\n", summarize=10000)
+
+            self.p1_reduced = tf.reduce_max(outer, axis=2)
+            self.p2_reduced = tf.reduce_max(outer, axis=1)
+
+            self.yp1 = tf.argmax(self.p1_reduced, axis=1)
+            self.yp2 = tf.argmax(self.p2_reduced, axis=1)
 
 
 class Inference(object):
@@ -135,12 +141,14 @@ class Inference(object):
         model = self.model
         span, context_idxs, ques_idxs, context_char_idxs, ques_char_idxs = self.prepro(
             context, question)
-        yp1, yp2 = sess.run([model.yp1, model.yp2], feed_dict={
-                            model.c: context_idxs, model.q: ques_idxs,
-                            model.ch: context_char_idxs, model.qh: ques_char_idxs})
-        start_idx = span[yp1[0]][0]
+        yp1, yp2, p1_reduced, p2_reduced = sess.run(
+            [model.yp1, model.yp2, model.p1_reduced, model.p2_reduced],
+            feed_dict={
+                model.c: context_idxs, model.q: ques_idxs,
+                model.ch: context_char_idxs, model.qh: ques_char_idxs})
+        start_idx = span[yp1[0]][0]  # span是每个token的起始位置
         end_idx = span[yp2[0]][1]
-        return context[start_idx: end_idx]
+        return context[start_idx: end_idx], p1_reduced[0], p2_reduced[0]
 
     def prepro(self, context, question):
         context = context.replace("''", '" ').replace("``", '" ')
@@ -222,12 +230,14 @@ if __name__ == "__main__":
               "their investigation into the fatal crash of a passenger jet in belle_harbor , " \
               "queens , because equipment failure , not pilot error , might have been the cause "
     ques1 = "Where is queens locations in?"
-    ans1 = infer.response(context, ques1)
+    ans1, p1_reduced, p2_reduced = infer.response(context, ques1)
+    print(p1_reduced)
+    print(p2_reduced)
     print("Answer 1: {}".format(ans1))
 
-    context = "... michael crawford , right , who is ailing , will not return to his award-winning " \
-              "role of count fosco in the andrew lloyd webber musical adaptation of the wilkie_collins " \
-              "classic , '' the woman in white , '' in london as scheduled on may 2 ."
-    ques2 = "Where is the birth place of wilkie_collins?"
-    ans2 = infer.response(context, ques2)
-    print("Answer 2: {}".format(ans2))
+    # context = "... michael crawford , right , who is ailing , will not return to his award-winning " \
+    #           "role of count fosco in the andrew lloyd webber musical adaptation of the wilkie_collins " \
+    #           "classic , '' the woman in white , '' in london as scheduled on may 2 ."
+    # ques2 = "Where is the birth place of wilkie_collins?"
+    # ans2 = infer.response(context, ques2)
+    # print("Answer 2: {}".format(ans2))
